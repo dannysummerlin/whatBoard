@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Whiteboard</title>
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.8.9/jquery.csv.min.js" integrity="sha256-F8eQhL9KDGgaDitxiSyq6SnTCL0m67rt7niivBtH2rc=" crossorigin="anonymous"></script>
+	<script type="text/javascript">
+String.prototype.toHash = function() {
+	var hash = 0
+	if (this.length == 0)
+		return hash
+	for (var i = 0; i < this.length; i++) {
+		var char = this.charCodeAt(i)
+		hash = ((hash<<5)-hash)+char
+		hash = hash & hash
+	}
+	return hash
+}
+const parseMotto = motto => {
+	const len = motto.length
+	const half = Math.floor(len / 2)
+	for (var i = 0; i < len; i++) {
+		let kern = 0
+		let character = motto[i]
+		switch(character) {
+			case ' ':
+				character = '&nbsp;'
+				break
+			case 'i':
+			case 'I':
+				kern = 0.5
+				break
+			case 'o':
+			case 'O':
+				kern = -0.75
+				break
+		}
+		jQuery('#scroll').append('<span style="transform: rotate(' + ((i - half) * 4 + kern) + 'deg)">' + character + '</span>')
+	}
+}
+const copyLink = anchor => {
+	if(navigator.clipboard)
+		navigator.clipboard.writeText(location.origin + location.pathname + anchor).then(success => {
+			alert('Copied link to that item')
+		})
+}
+jQuery(document).ready(function() {
+	jQuery.get('/settings.ini', data => {
+		jQuery.csv.toArrays(data, {separator: "=", headers: false}).forEach(data => {
+			if(data.length < 2)
+				return
+			const key = data[0].trim()
+			const value = data[1].trim()
+			switch(key) {
+				case 'title':
+					document.title = value
+					break
+				case 'motto':
+					parseMotto(value)
+					break
+				case 'bootstrapTheme':
+					jQuery('link#baseTheme').prop('disabled', true)
+					jQuery('head').append('<link href="' + value + '" rel="stylesheet" id="newcss" />')
+					break
+				default:
+					jQuery("#" + key).html(value)
+			}
+		})
+	})
+	jQuery.get('/items.tsv', data => {
+		const colors = ["primary","warning","danger","success","info"]
+		const quotes = jQuery.csv.toObjects(data, {separator: "\t"})
+		for (let i = quotes.length - 1; i >= 0; i--) {
+			const classCode = colors[quotes[i].author.length % colors.length ]
+			const textAlign = ["text-left","text-right"][i%2]
+			const anchor = "quote" + quotes[i].quote.toHash()
+			const out = `
+<div class="card mb-3 text-${classCode} border-${classCode}" id="${anchor}">
+	<div class="card-body ${textAlign}">
+		<blockquote class="blockquote"><p class="mb-0">${quotes[i].quote}</p></blockquote>
+	</div>
+	<div class="card-footer text-muted bg-transparent text-right align-bottom">
+		${quotes[i].author}, ${quotes[i].date}
+		<a href="#" onclick="copyLink('#${anchor}');return false" class="btn btn-sn"><i class="material-icons">share</i></a>
+	</div>
+</div>`
+			jQuery('.quotebox').append(out)
+		}
+		const hash = jQuery(location.hash)[0]
+		if(hash)
+			hash.scrollIntoView()
+	})
+})
+	</script>
+	<link rel="stylesheet" id="baseTheme" type="text/css" href="/css/bootstrap.litera.min.css" />
+	<link rel="stylesheet" type="text/css" href="/css/style.css" />
+</head>
+<body>
+	<div class="container">
+		<div class="banner">
+			<p class="scroll" id="scroll"></p>
+			<p class="tag" id="siteTag"></p>
+		</div>
+		<div class="quotebox">
+			<h1 id="pageTitle"></h1>
+		</div>
+	</div>
+</body>
+</html>
