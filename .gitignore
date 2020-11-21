@@ -1,0 +1,3 @@
+## Making sure local settings don't get pulled into Git
+settings.ini
+items.tsv
